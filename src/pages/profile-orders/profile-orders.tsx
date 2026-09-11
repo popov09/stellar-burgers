@@ -5,7 +5,7 @@ import { getOrders } from '../../services/slices/feed-slice';
 
 export const ProfileOrders: FC = () => {
   const dispatch = useDispatch();
-  const orders = useSelector((state) => state.feed.orders);
+  const orders = useSelector((state) => state.feed.userOrders);
 
   useEffect(() => {
     dispatch(getOrders());

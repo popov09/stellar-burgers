@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import {
   ConstructorPage,
@@ -26,7 +26,24 @@ import { useDispatch, useSelector } from '../../services/store';
 import { getIngredients } from '../../services/slices/ingredients-slice';
 import { getUser } from '../../services/slices/user-slice';
 import { getFeeds } from '../../services/slices/feed-slice';
-import { clearOrderModalData } from '../../services/slices/order-slice';
+
+const OrderDetailsPage: FC = () => (
+  <div className={styles.detailPageWrap}>
+    <h3 className={`${styles.detailHeader} text text_type_main-large`}>
+      Детали заказа
+    </h3>
+    <OrderInfo />
+  </div>
+);
+
+const IngredientDetailsPage: FC = () => (
+  <div className={styles.detailPageWrap}>
+    <h3 className={`${styles.detailHeader} text text_type_main-large`}>
+      Детали ингредиента
+    </h3>
+    <IngredientDetails />
+  </div>
+);
 
 const App = () => {
   const dispatch = useDispatch();
@@ -109,6 +126,19 @@ const App = () => {
               element={
                 <ProtectedRoute>
                   <ProfileOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route path='/feed/:number' element={<OrderDetailsPage />} />
+            <Route
+              path='/ingredients/:id'
+              element={<IngredientDetailsPage />}
+            />
+            <Route
+              path='/profile/orders/:number'
+              element={
+                <ProtectedRoute>
+                  <OrderDetailsPage />
                 </ProtectedRoute>
               }
             />
