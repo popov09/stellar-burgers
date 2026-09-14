@@ -2,26 +2,20 @@ import { test, expect, Page } from '@playwright/test';
 import path from 'path';
 import { mockIngredients } from './mocks/ingredients';
 
-const HAR_PATH = path.resolve(__dirname, 'mocks', 'ingredients.har');
+const INGREDIENTS_HAR_PATH = path.resolve(
+  __dirname,
+  'mocks',
+  'ingredients.har'
+);
+const USER_HAR_PATH = path.resolve(__dirname, 'mocks', 'auth-user.har');
+const ORDER_HAR_PATH = path.resolve(__dirname, 'mocks', 'order.har');
 
-const MOCK_USER = { success: true, user: { email: 'test@yandex.ru', name: 'Тест' } };
-
-const MOCK_ORDER = {
-  success: true,
-  name: 'Флюоресцентный бургер',
-  order: {
-    _id: 'mock-order-id',
-    status: 'done',
-    name: 'Флюоресцентный бургер',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    number: 54321,
-    price: 1000
-  }
-};
+const EXPECTED_ORDER_NUMBER = 54321;
 
 async function navigateToConstructor(page: Page) {
-  await page.routeFromHAR(HAR_PATH, { url: '**/api/ingredients' });
+  await page.routeFromHAR(INGREDIENTS_HAR_PATH, {
+    url: '**/api/ingredients'
+  });
   await page.goto('/');
   await expect(
     page.getByText(mockIngredients[0].name, { exact: true })
@@ -35,24 +29,29 @@ async function addIngredient(page: Page, name: string) {
     .click();
 }
 
+function constructorSection(page: Page) {
+  return page.locator('section', { hasText: 'Оформить заказ' });
+}
+
 test('добавление ингредиентов в конструктор', async ({ page }) => {
   await navigateToConstructor(page);
 
   await addIngredient(page, mockIngredients[0].name);
   await addIngredient(page, mockIngredients[1].name);
 
+  const constructor = constructorSection(page);
   await expect(
-    page.getByText(`${mockIngredients[0].name} (верх)`, { exact: true })
+    constructor.getByText(`${mockIngredients[0].name} (верх)`, {
+      exact: true
+    })
   ).toBeVisible();
   await expect(
-    page.getByText(`${mockIngredients[0].name} (низ)`, { exact: true })
+    constructor.getByText(`${mockIngredients[0].name} (низ)`, {
+      exact: true
+    })
   ).toBeVisible();
-
-  const constructorSection = page.locator('section', {
-    hasText: 'Оформить заказ'
-  });
   await expect(
-    constructorSection.getByText(mockIngredients[1].name, { exact: true })
+    constructor.getByText(mockIngredients[1].name, { exact: true })
   ).toBeVisible();
 });
 
@@ -85,7 +84,10 @@ test('модальное окно ингредиента закрывается 
   await expect(modal).toBeVisible();
   await expect(modal).toContainText('Детали ингредиента');
 
-  await page.locator('#modals > div').last().click({ position: { x: 5, y: 5 } });
+  await page
+    .locator('#modals > div')
+    .last()
+    .click({ position: { x: 5, y: 5 } });
   await expect(modal).toBeHidden();
   await expect(page.locator('#modals')).toBeEmpty();
 });
@@ -102,29 +104,8 @@ test('оформление заказа', async ({ page }) => {
     localStorage.setItem('refreshToken', 'mock-refresh-token');
   });
 
-  await page.route('**/api/auth/user', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json;charset=utf-8',
-      body: JSON.stringify(MOCK_USER)
-    });
-  });
-
-  await page.route('**/api/orders', async (route) => {
-    if (route.request().method() === 'POST') {
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json;charset=utf-8',
-        body: JSON.stringify(MOCK_ORDER)
-      });
-    } else {
-      await route.fulfill({
-        status: 401,
-        contentType: 'application/json;charset=utf-8',
-        body: JSON.stringify({ success: false, message: 'Не авторизован' })
-      });
-    }
-  });
+  await page.routeFromHAR(USER_HAR_PATH, { url: '**/api/auth/user' });
+  await page.routeFromHAR(ORDER_HAR_PATH, { url: '**/api/orders' });
 
   await navigateToConstructor(page);
 
@@ -138,10 +119,12 @@ test('оформление заказа', async ({ page }) => {
 
   const modal = page.locator('#modals > div').first();
   await expect(modal).toBeVisible();
-  await expect(modal).toContainText('54321');
+  await expect(modal).toContainText(String(EXPECTED_ORDER_NUMBER));
   await expect(modal).toContainText('идентификатор заказа');
 
-  await expect(page.getByText('Выберите начинку')).toBeVisible();
+  const constructor = constructorSection(page);
+  await expect(constructor.getByText('Выберите начинку')).toBeVisible();
+  await expect(constructor.getByText('Выберите булки')).toHaveCount(2);
 
   await modal.getByRole('button').click();
   await expect(modal).toBeHidden();
